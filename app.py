@@ -1,0 +1,109 @@
+from flask import Flask, render_template, request, jsonify, redirect, url_for
+import qrcode
+import secrets
+import os
+import csv
+from datetime import datetime
+from PIL import Image
+
+app = Flask(__name__)
+
+QR_FOLDER = "static"
+QR_IMAGE_PATH = os.path.join(QR_FOLDER, "qr.png")
+STUDENT_FILE = "students.csv"
+
+current_mode = {"type": "attendance", "token": ""}
+
+
+def generate_qr(token):
+    img = qrcode.make(f"http://localhost:5000/scan_form?token={token}")
+    img.save(QR_IMAGE_PATH)
+
+
+def load_students():
+    students = {}
+    if os.path.exists(STUDENT_FILE):
+        with open(STUDENT_FILE, mode='r', newline='', encoding='utf-8') as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                students[row['roll']] = row['name']
+    return students
+
+
+def save_student(name, roll):
+    exists = os.path.exists(STUDENT_FILE)
+    with open(STUDENT_FILE, mode='a', newline='', encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=['name', 'roll'])
+        if not exists:
+            writer.writeheader()
+        writer.writerow({'name': name, 'roll': roll})
+
+
+def log_attendance(name, roll):
+    with open('attendance_log.csv', mode='a', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow([name, roll, datetime.now().strftime('%Y-%m-%d %H:%M:%S')])
+
+
+@app.route('/')
+def home():
+    token = secrets.token_hex(4)
+    current_mode["type"] = "attendance"
+    current_mode["token"] = token
+    generate_qr(token)
+    return render_template('index.html', token=token)
+
+
+@app.route('/generate_register_qr')
+def generate_register_qr():
+    token = secrets.token_hex(4)
+    current_mode["type"] = "register"
+    current_mode["token"] = token
+    generate_qr(token)
+    return render_template('index.html', token=token)
+
+
+@app.route('/scan_form')
+def scan_form():
+    token = request.args.get('token')
+    if token != current_mode['token']:
+        return "Invalid or expired QR code."
+    if current_mode['type'] == "register":
+        return render_template('register.html', token=token)
+    elif current_mode['type'] == "attendance":
+        return render_template('scan.html', token=token)
+    return "Unknown operation."
+
+
+@app.route('/register', methods=['POST'])
+def register():
+    name = request.form['name']
+    roll = request.form['roll']
+    token = request.form['token']
+    if token != current_mode['token']:
+        return "Invalid registration token."
+    students = load_students()
+    if roll not in students:
+        save_student(name, roll)
+        return "Registration successful."
+    return "Student already exists."
+
+
+@app.route('/scan', methods=['POST'])
+def scan():
+    token = request.form['token']
+    roll = request.form['roll']
+    students = load_students()
+    if token != current_mode['token']:
+        return jsonify({"success": False, "msg": "Invalid or expired QR token."})
+    name = students.get(roll)
+    if name:
+        log_attendance(name, roll)
+        return jsonify({"success": True, "name": name, "roll": roll})
+    return jsonify({"success": False, "msg": "Roll number not found."})
+
+
+if __name__ == '__main__':
+    if not os.path.exists(QR_FOLDER):
+        os.makedirs(QR_FOLDER)
+    app.run(debug=True)

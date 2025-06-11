@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Attendance</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    form { max-width: 400px; margin: auto; }
+    input { width: 100%; padding: 10px; margin: 10px 0; }
+    button { padding: 10px 20px; }
+    .result { margin-top: 20px; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h2>Mark Attendance</h2>
+  <form id="attendance-form">
+    <input type="text" name="roll" id="roll" placeholder="Enter your roll number" required>
+    <input type="hidden" name="token" value="{{ token }}">
+    <button type="submit">Submit</button>
+  </form>
+  <div class="result" id="result"></div>
+
+  <script>
+    document.getElementById('attendance-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const formData = new FormData(e.target);
+      const res = await fetch('/scan', { method: 'POST', body: formData });
+      const data = await res.json();
+      const resultEl = document.getElementById('result');
+      if (data.success) {
+        resultEl.textContent = `Attendance marked: ${data.name} (${data.roll})`;
+        resultEl.style.color = 'green';
+      } else {
+        resultEl.textContent = data.msg;
+        resultEl.style.color = 'red';
+      }
+    });
+  </script>
+</body>
+</html>
