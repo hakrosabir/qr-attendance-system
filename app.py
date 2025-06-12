@@ -8,6 +8,9 @@ from PIL import Image
 
 app = Flask(__name__)
 
+# LIVE URL
+LIVE_BASE_URL = "https://qr-attendance-system-yqfz.onrender.com"
+
 QR_FOLDER = "static"
 QR_IMAGE_PATH = os.path.join(QR_FOLDER, "qr.png")
 STUDENT_FILE = "students.csv"
@@ -16,7 +19,8 @@ current_mode = {"type": "attendance", "token": ""}
 
 
 def generate_qr(token):
-    img = qrcode.make(f"http://localhost:5000/scan_form?token={token}")
+    full_url = f"{LIVE_BASE_URL}/scan_form?token={token}"
+    img = qrcode.make(full_url)
     img.save(QR_IMAGE_PATH)
 
 
