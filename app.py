@@ -1,14 +1,15 @@
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify, send_file
 import qrcode
 import secrets
 import os
 import csv
 from datetime import datetime
 from PIL import Image
+import threading
+import time
 
 app = Flask(__name__)
 
-# LIVE URL
 LIVE_BASE_URL = "https://qr-attendance-system-yqfz.onrender.com"
 
 QR_FOLDER = "static"
@@ -22,6 +23,15 @@ def generate_qr(token):
     full_url = f"{LIVE_BASE_URL}/scan_form?token={token}"
     img = qrcode.make(full_url)
     img.save(QR_IMAGE_PATH)
+
+
+def update_qr_loop():
+    while True:
+        if current_mode["type"] == "attendance":
+            token = secrets.token_hex(4)
+            current_mode["token"] = token
+            generate_qr(token)
+        time.sleep(2)  # Change every 2 seconds
 
 
 def load_students():
@@ -51,11 +61,18 @@ def log_attendance(name, roll):
 
 @app.route('/')
 def home():
-    token = secrets.token_hex(4)
     current_mode["type"] = "attendance"
-    current_mode["token"] = token
-    generate_qr(token)
-    return render_template('index.html', token=token)
+    return render_template('index.html')
+
+
+@app.route('/qr_image')
+def qr_image():
+    return send_file(QR_IMAGE_PATH, mimetype='image/png')
+
+
+@app.route('/current_qr_token')
+def current_qr_token():
+    return jsonify({"token": current_mode["token"]})
 
 
 @app.route('/generate_register_qr')
@@ -64,7 +81,7 @@ def generate_register_qr():
     current_mode["type"] = "register"
     current_mode["token"] = token
     generate_qr(token)
-    return render_template('index.html', token=token)
+    return render_template('index.html')
 
 
 @app.route('/scan_form')
@@ -92,7 +109,7 @@ def register():
         return "Registration successful."
     return "Student already exists."
 
-
+s
 @app.route('/scan', methods=['POST'])
 def scan():
     token = request.form['token']
@@ -110,4 +127,8 @@ def scan():
 if __name__ == '__main__':
     if not os.path.exists(QR_FOLDER):
         os.makedirs(QR_FOLDER)
+
+    # Start QR auto-update in background
+    threading.Thread(target=update_qr_loop, daemon=True).start()
+
     app.run(debug=True)

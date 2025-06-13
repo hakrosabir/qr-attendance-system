@@ -1,21 +1,33 @@
-
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QR Attendance System</title>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 20px; }
-    img { max-width: 300px; margin: 20px auto; }
-    button { padding: 10px 20px; font-size: 16px; }
-  </style>
+    <title>QR Attendance</title>
 </head>
 <body>
-  <h1>QR Code - {{ 'Registration' if 'register' in token else 'Attendance' }}</h1>
-  <img src="/static/qr.png" alt="QR Code">
-  <br>
-  <a href="/generate_register_qr"><button>Generate Registration QR</button></a>
-  <a href="/"><button>Generate Attendance QR</button></a>
+    <h1>Scan to Mark Attendance</h1>
+    <img id="qr-code" src="/qr_image" width="300" height="300">
+    <p>Token: <span id="token-text"></span></p>
+
+    <script>
+        function updateQRCode() {
+            document.getElementById("qr-code").src = "/qr_image?ts=" + new Date().getTime();
+        }
+
+        function updateToken() {
+            fetch("/current_qr_token")
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("token-text").textContent = data.token;
+                });
+        }
+
+        setInterval(() => {
+            updateQRCode();
+            updateToken();
+        }, 2000);
+
+        updateQRCode();
+        updateToken();
+    </script>
 </body>
 </html>
