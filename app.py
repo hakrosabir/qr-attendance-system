@@ -109,7 +109,7 @@ def register():
         return "Registration successful."
     return "Student already exists."
 
-s
+
 @app.route('/scan', methods=['POST'])
 def scan():
     token = request.form['token']
